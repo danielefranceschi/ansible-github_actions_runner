@@ -158,3 +158,14 @@
   no_log: "{{ hide_sensitive_logs | bool }}"
   ignore_errors: "{{ ansible_check_mode }}"
   when: runner_version not in runner_installed.stdout and not runner_state|lower == "stopped"
+
+- name: "(re)start systemd service to be sure that everything is up and running"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    enabled: true
+    name: "{{ (runner_service.content | b64decode) | trim }}"
+    state: restarted
+  when: >
+    ansible_system != 'Darwin' and
+    runner_state|lower == "started" and
+    runner_version not in runner_installed.stdout

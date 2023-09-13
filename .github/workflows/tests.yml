@@ -13,8 +13,8 @@ on:
       - 'tasks/**'
       - 'templates/**'
       - 'vars/**'
-  schedule:
-    - cron: '0 6 * * 0'
+  #schedule:
+  #  - cron: '0 * 1 * 0'
   workflow_dispatch:
 
 env:
