@@ -29,7 +29,7 @@
     remote_src: true
     mode: "0755"
   environment:
-    PATH: /usr/local/bin:/opt/homebrew/bin/:{{ ansible_env.HOME }}/bin:{{ ansible_env.PATH }}
+    PATH: /usr/local/bin:/opt/homebrew/bin/:{{ ansible_facts.user_dir }}/bin:{{ ansible_facts.env.PATH }}
   when: runner_version not in runner_installed.stdout or reinstall_runner
 
 - name: Configure custom env file if required
@@ -63,7 +63,7 @@
     github_full_url: "{{ github_url }}/enterprises/{{ github_enterprise }}"
   when: github_enterprise is defined
 
-- name: Register runner
+- name: Register runner  # noqa no-changed-when
   environment:
     RUNNER_ALLOW_RUNASROOT: "1"
   ansible.builtin.command:
@@ -79,10 +79,11 @@
     chdir: "{{ runner_dir }}"
   changed_when: true
   become_user: "{{ runner_user }}"
+  become: true
   no_log: "{{ hide_sensitive_logs | bool }}"
   when: runner_name not in registered_runners.json.runners|map(attribute='name')|list
 
-- name: Replace registered runner
+- name: Replace registered runner  # noqa no-changed-when
   environment:
     RUNNER_ALLOW_RUNASROOT: "1"
   ansible.builtin.command:
@@ -98,18 +99,19 @@
     chdir: "{{ runner_dir }}"
   changed_when: true
   become_user: "{{ runner_user }}"
+  become: true
   no_log: "{{ hide_sensitive_logs | bool }}"
   when: >
     runner_name in registered_runners.json.runners|map(attribute='name')|list and
     reinstall_runner and
     not runner_org
 
-- name: Install service
+- name: Install service  # noqa no-changed-when
   ansible.builtin.command: "./svc.sh install {{ runner_user }}"
   args:
     chdir: "{{ runner_dir }}"
   changed_when: true
-  become: "{{ 'false' if ansible_system == 'Darwin' else 'true' }}"
+  become: "{{ 'false' if ansible_facts.system == 'Darwin' else 'true' }}"
   when: not runner_service_file_path.stat.exists
 
 - name: Read service name from file
@@ -117,7 +119,7 @@
     src: "{{ runner_dir }}/.service"
   register: runner_service
 
-- name: START and enable Github Actions Runner service (Linux)
+- name: START and enable Github Actions Runner service (Linux)  # noqa no-changed-when
   ansible.builtin.command: "./svc.sh start"
   args:
     chdir: "{{ runner_dir }}"
@@ -125,21 +127,21 @@
   ignore_errors: "{{ ansible_check_mode }}"
   changed_when: true
   when: >
-    ansible_system != 'Darwin' and
+    ansible_facts.system != 'Darwin' and
     runner_state|lower == "started" and
     ansible_facts.services[(runner_service.content | b64decode) | trim ]['state'] != 'running'
 
 - name: START and enable Github Actions Runner service (macOS) # TODO: Idempotence
-  ansible.builtin.command: "./svc.sh start"
+  ansible.builtin.command: "./svc.sh start"  # noqa no-changed-when
   args:
     chdir: "{{ runner_dir }}"
   become: false
   no_log: "{{ hide_sensitive_logs | bool }}"
   ignore_errors: "{{ ansible_check_mode }}"
   changed_when: true
-  when: ansible_system == 'Darwin' and runner_state|lower
+  when: ansible_facts.system == 'Darwin' and runner_state|lower
 
-- name: STOP and disable Github Actions Runner service
+- name: STOP and disable Github Actions Runner service  # noqa no-changed-when
   ansible.builtin.command: "./svc.sh stop"
   args:
     chdir: "{{ runner_dir }}"
@@ -154,7 +156,7 @@
   args:
     chdir: "{{ runner_dir }}"
   changed_when: true
-  become: "{{ 'false' if ansible_system == 'Darwin' else 'true' }}"
+  become: "{{ 'false' if ansible_facts.system == 'Darwin' else 'true' }}"
   no_log: "{{ hide_sensitive_logs | bool }}"
   ignore_errors: "{{ ansible_check_mode }}"
   when: runner_version not in runner_installed.stdout and not runner_state|lower == "stopped"
